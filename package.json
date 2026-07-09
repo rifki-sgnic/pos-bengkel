@@ -1,0 +1,8 @@
+{
+  "name": "pos-bengkel",
+  "private": true,
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend"
+  ]
+}

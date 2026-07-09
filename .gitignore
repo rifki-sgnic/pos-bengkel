@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables
+.env
+**/.env
+.env.local
+**/.env.local
+
+# Build output
+dist/
+**/dist/
+build/
+**/build/
+
+# Prisma generated client
+apps/backend/generated/
+apps/backend/prisma/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vite
+apps/frontend/dist/
+apps/frontend/.vite/
