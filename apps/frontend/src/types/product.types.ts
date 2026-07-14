@@ -29,3 +29,15 @@ export interface CreateProductPayload {
   minStock?: number
   categoryId?: string
 }
+
+export interface UpdateProductPayload {
+  name?: string
+  sku?: string
+  type?: ProductType
+  costPrice?: number
+  sellPrice?: number
+  stock?: number
+  minStock?: number
+  categoryId?: string
+  isActive?: boolean
+}
