@@ -41,3 +41,25 @@ export interface UpdateProductPayload {
   categoryId?: string
   isActive?: boolean
 }
+
+export interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export interface ProductListParams {
+  page?: number
+  limit?: number
+  search?: string
+  sortBy?: "name" | "sellPrice" | "costPrice" | "stock" | null
+  sortOrder?: "asc" | "desc"
+  type?: ProductType
+  categoryId?: string
+}
+
+export interface ProductListResponse {
+  data: Product[]
+  meta: PaginationMeta
+}

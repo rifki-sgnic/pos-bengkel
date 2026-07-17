@@ -5,12 +5,19 @@ import { productsController } from "./products.controller";
 import {
   adjustStockSchema,
   createProductSchema,
+  productQuerySchema,
   updateProductSchema,
 } from "./products.schema";
+import { validateQuery } from "../../middlewares/validateQuery";
 
 const router = Router();
 
-router.get("/", authenticate, productsController.findAll);
+router.get(
+  "/",
+  authenticate,
+  validateQuery(productQuerySchema),
+  productsController.findAll,
+);
 router.get("/low-stock", authenticate, productsController.getLowStock);
 router.get("/:id", authenticate, productsController.findById);
 

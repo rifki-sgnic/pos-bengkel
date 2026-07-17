@@ -18,5 +18,21 @@ export const voidTransactionSchema = z.object({
   voidReason: z.string().min(5, "Alasan void minimal 5 karakter"),
 });
 
+export const transactionQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(10),
+  search: z.string().optional(),
+  sortBy: z
+    .enum(["createdAt", "total", "invoiceNumber"])
+    .optional()
+    .default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+  status: z.enum(["COMPLETED", "VOIDED"]).optional(),
+  paymentMethod: z.enum(["CASH", "TRANSFER", "QRIS"]).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type VoidTransactionInput = z.infer<typeof voidTransactionSchema>;
+export type TransactionQueryInput = z.infer<typeof transactionQuerySchema>;

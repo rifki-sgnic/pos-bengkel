@@ -4,12 +4,19 @@ import { validate } from "../../middlewares/validate";
 import { transactionsController } from "./transactions.controller";
 import {
   createTransactionSchema,
+  transactionQuerySchema,
   voidTransactionSchema,
 } from "./transactions.schema";
+import { validateQuery } from "../../middlewares/validateQuery";
 
 const router = Router();
 
-router.get("/", authenticate, transactionsController.findAll);
+router.get(
+  "/",
+  authenticate,
+  validateQuery(transactionQuerySchema),
+  transactionsController.findAll,
+);
 router.get("/:id", authenticate, transactionsController.findById);
 router.post(
   "/",

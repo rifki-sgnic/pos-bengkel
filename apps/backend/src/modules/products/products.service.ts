@@ -1,7 +1,9 @@
 import { prisma } from "../../config/database";
+import { Prisma } from "../../generated/prisma/client";
 import {
   AdjustStockInput,
   CreateProductInput,
+  ProductQueryInput,
   UpdateProductInput,
 } from "./products.schema";
 
@@ -24,18 +26,44 @@ export const productsService = {
     });
   },
 
-  async findAll(role: "OWNER" | "CASHIER") {
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
-      include: { category: true },
-      orderBy: { name: "asc" },
-    });
+  async findAll(query: ProductQueryInput, role: "OWNER" | "CASHIER") {
+    const { page, limit, search, sortBy, sortOrder, type, categoryId } = query;
 
-    if (role === "CASHIER") {
-      return products.map(({ costPrice, ...rest }) => rest);
-    }
+    const where: Prisma.ProductWhereInput = {
+      isActive: true,
+      ...(type && { type }),
+      ...(categoryId && { categoryId }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { sku: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+    };
 
-    return products;
+    const [items, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: { category: true },
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    const data =
+      role === "CASHIER" ? items.map(({ costPrice, ...rest }) => rest) : items;
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   },
 
   async findById(id: string, role: "OWNER" | "CASHIER") {

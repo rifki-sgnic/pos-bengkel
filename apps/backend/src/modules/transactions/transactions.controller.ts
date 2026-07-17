@@ -17,12 +17,8 @@ export const transactionsController = {
   },
 
   async findAll(req: Request, res: Response) {
-    const { startDate, endDate } = req.query;
-    const transactions = await transactionsService.findAll({
-      startDate: startDate as string | undefined,
-      endDate: endDate as string | undefined,
-    });
-    res.status(200).json({ data: transactions });
+    const result = await transactionsService.findAll(req.validatedQuery);
+    res.status(200).json(result);
   },
 
   async findById(req: Request, res: Response) {
