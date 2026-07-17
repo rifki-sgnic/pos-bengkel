@@ -1,6 +1,8 @@
 import { prisma } from "../../config/database";
+import { Prisma } from "../../generated/prisma/client";
 import {
   CreateTransactionInput,
+  TransactionQueryInput,
   VoidTransactionInput,
 } from "./transactions.schema";
 
@@ -81,7 +83,10 @@ export const transactionsService = {
           cashierId,
           items: { create: itemsData },
         },
-        include: { items: { include: { product: true } } },
+        include: {
+          items: { include: { product: true } },
+          cashier: { select: { name: true } },
+        },
       });
 
       // Update stok + catat stock movement, cuma buat produk tipe PART
@@ -109,20 +114,63 @@ export const transactionsService = {
     });
   },
 
-  async findAll(filters: { startDate?: string; endDate?: string }) {
-    return prisma.transaction.findMany({
-      where: {
+  async findAll(query: TransactionQueryInput) {
+    const {
+      page,
+      limit,
+      search,
+      sortBy,
+      sortOrder,
+      status,
+      paymentMethod,
+      startDate,
+      endDate,
+    } = query;
+
+    const where: Prisma.TransactionWhereInput = {
+      ...(status && { status }),
+      ...(paymentMethod && { paymentMethod }),
+      ...(search && {
+        OR: [
+          { invoiceNumber: { contains: search, mode: "insensitive" } },
+          { customerName: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+      ...((startDate || endDate) && {
         createdAt: {
-          gte: filters.startDate ? new Date(filters.startDate) : undefined,
-          lte: filters.endDate ? new Date(filters.endDate) : undefined,
+          ...(startDate && {
+            gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
+          }),
+          ...(endDate && {
+            lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+          }),
         },
+      }),
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          items: { include: { product: true } },
+          cashier: { select: { name: true } },
+        },
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.transaction.count({ where }),
+    ]);
+
+    return {
+      data: items,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      include: {
-        items: { include: { product: true } },
-        cashier: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    };
   },
 
   async findById(id: string) {

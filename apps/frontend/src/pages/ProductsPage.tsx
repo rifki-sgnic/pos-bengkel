@@ -1,5 +1,10 @@
-import { Ban, MoreHorizontal, Pencil, Plus } from "lucide-react"
-import { useState } from "react"
+import type {
+  ColumnDef,
+  PaginationState,
+  SortingState,
+} from "@tanstack/react-table"
+import { ArrowUpDown, Ban, MoreHorizontal, Pencil, Plus } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,36 +14,47 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 
 import { ProductFormDialog } from "@/components/products/ProductFormDialog"
+import { DataTable } from "@/components/shared/DataTable"
 import { useAuthStore } from "@/features/auth/useAuthStore"
+import { useCategories } from "@/features/categories/useCategoriesQuery"
 import {
   useDeactivateProduct,
   useProducts,
 } from "@/features/products/useProductsQuery"
-import type { Product } from "@/types/product.types"
-
-function formatRupiah(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { formatRupiah } from "@/lib/formatters"
+import type {
+  Product,
+  ProductListParams,
+  ProductType,
+} from "@/types/product.types"
+import { useDataTableUrlState } from "@/hooks/use-data-table-url-state"
 
 export function ProductsPage() {
-  const { data: products, isLoading } = useProducts()
-  const deactivateProduct = useDeactivateProduct()
   const user = useAuthStore((state) => state.user)
   const isOwner = user?.role === "OWNER"
+  const { data: categories = [] } = useCategories()
+
+  const { queryParams, getFilter, setFilter, tableProps } =
+    useDataTableUrlState({
+      defaultSortBy: "name",
+      defaultPageSize: 10,
+    })
+
+  const typeFilter = getFilter("type")
+  const categoryFilter = getFilter("categoryId")
+
+  const { data: response, isLoading } = useProducts({
+    ...queryParams,
+    type: typeFilter as ProductType | undefined,
+    categoryId: categoryFilter,
+  })
+  const products = response?.data ?? []
+  const meta = response?.meta
+
+  const deactivateProduct = useDeactivateProduct()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -63,6 +79,150 @@ export function ProductsPage() {
     }
   }
 
+  // Helper buat bikin header sortable — cuma dipake di kolom yang backend-nya support sort
+  function sortableHeader(label: string, align: "left" | "right" = "left") {
+    return ({ column }: any) => (
+      <div className={align === "right" ? "flex w-full justify-end" : ""}>
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className={`h-8 ${align === "right" ? "-mr-3 justify-end text-right" : "-ml-3 justify-start text-left"} hover:bg-muted`}
+        >
+          {label}
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    )
+  }
+
+  const columns: ColumnDef<Product>[] = useMemo(() => {
+    const cols: ColumnDef<Product>[] = [
+      {
+        accessorKey: "name",
+        header: sortableHeader("Nama"),
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.name}</span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: "type",
+        header: "Tipe",
+        enableSorting: false, // backend gak expose sort by type
+        cell: ({ getValue }) => {
+          const val = getValue() as string
+          return (
+            <Badge variant={val === "PART" ? "default" : "secondary"}>
+              {val === "PART" ? "Part" : "Jasa"}
+            </Badge>
+          )
+        },
+      },
+      {
+        id: "category",
+        header: "Kategori",
+        enableSorting: false, // backend gak expose sort by relasi category
+        cell: ({ row }) => row.original.category?.name ?? "-",
+      },
+    ]
+
+    if (isOwner) {
+      cols.push({
+        accessorKey: "costPrice",
+        header: sortableHeader("Harga Modal", "right"),
+        cell: ({ getValue }) => (
+          <div className="text-right font-mono">
+            {formatRupiah(Number(getValue()) || 0)}
+          </div>
+        ),
+      })
+    }
+
+    cols.push(
+      {
+        accessorKey: "sellPrice",
+        header: sortableHeader("Harga Jual", "right"),
+        cell: ({ getValue }) => (
+          <div className="text-right font-mono">
+            {formatRupiah(Number(getValue()) || 0)}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "stock",
+        header: sortableHeader("Stok", "right"),
+        cell: ({ row }) => {
+          const p = row.original
+          const isLowStock = p.type === "PART" && p.stock <= p.minStock
+          return (
+            <div className="text-right font-mono">
+              {p.type === "JASA" ? (
+                "-"
+              ) : (
+                <span
+                  className={isLowStock ? "font-medium text-destructive" : ""}
+                >
+                  {p.stock}
+                  {isLowStock && " ⚠"}
+                </span>
+              )}
+            </div>
+          )
+        },
+      }
+    )
+
+    if (isOwner) {
+      cols.push({
+        id: "actions",
+        cell: ({ row }) => (
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleEdit(row.original)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleDeactivate(row.original.id)}
+                  variant="destructive"
+                >
+                  <Ban className="mr-2 h-4 w-4" />
+                  Nonaktifkan
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ),
+      })
+    }
+
+    return cols
+  }, [isOwner])
+
+  const tableFilters = [
+    {
+      columnId: "type",
+      label: "Tipe",
+      options: [
+        { label: "Part", value: "PART" },
+        { label: "Jasa", value: "JASA" },
+      ],
+    },
+    {
+      columnId: "categoryId",
+      label: "Kategori",
+      options: categories.map((cat) => ({ label: cat.name, value: cat.id })),
+    },
+  ]
+
   return (
     <div className="space-y-6 p-8">
       <div className="flex items-center justify-between">
@@ -82,119 +242,19 @@ export function ProductsPage() {
         )}
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama</TableHead>
-              <TableHead>Tipe</TableHead>
-              <TableHead>Kategori</TableHead>
-              {isOwner && (
-                <TableHead className="text-right">Harga Modal</TableHead>
-              )}
-              <TableHead className="text-right">Harga Jual</TableHead>
-              <TableHead className="text-right">Stok</TableHead>
-              {isOwner && <TableHead className="w-10" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-8 text-center text-muted-foreground"
-                >
-                  Memuat data...
-                </TableCell>
-              </TableRow>
-            )}
-
-            {!isLoading && products?.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-8 text-center text-muted-foreground"
-                >
-                  Belum ada produk. Tambahkan produk pertama Anda.
-                </TableCell>
-              </TableRow>
-            )}
-
-            {products?.map((product) => {
-              const isLowStock =
-                product.type === "PART" && product.stock <= product.minStock
-
-              return (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        product.type === "PART" ? "default" : "secondary"
-                      }
-                    >
-                      {product.type === "PART" ? "Part" : "Jasa"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{product.category?.name ?? "-"}</TableCell>
-                  {isOwner && (
-                    <TableCell className="text-right">
-                      {formatRupiah(product.costPrice ?? 0)}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    {formatRupiah(product.sellPrice)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.type === "JASA" ? (
-                      "-"
-                    ) : (
-                      <span
-                        className={
-                          isLowStock ? "font-medium text-destructive" : ""
-                        }
-                      >
-                        {product.stock}
-                        {isLowStock && " ⚠"}
-                      </span>
-                    )}
-                  </TableCell>
-                  {isOwner && (
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            />
-                          }
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(product)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeactivate(product.id)}
-                            className="text-destructive"
-                          >
-                            <Ban className="mr-2 h-4 w-4" />
-                            Nonaktifkan
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={products}
+        isLoading={isLoading}
+        emptyMessage="Belum ada produk. Tambahkan produk pertama Anda."
+        searchPlaceholder="Cari nama atau SKU produk..."
+        filters={tableFilters}
+        filterValues={{ type: typeFilter, categoryId: categoryFilter }}
+        onFilterChange={setFilter}
+        pageCount={meta?.totalPages ?? 0}
+        totalItems={meta?.total ?? 0}
+        {...tableProps}
+      />
 
       <ProductFormDialog
         open={dialogOpen}

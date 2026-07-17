@@ -106,7 +106,11 @@ export function ProductFormDialog({
   }, [open, product, reset])
 
   const onSubmit = (data: ProductFormOutput) => {
-    const payload = { ...data, stock: data.type === "JASA" ? 0 : data.stock }
+    const payload = {
+      ...data,
+      sku: data.sku?.trim() === "" ? undefined : data.sku,
+      stock: data.type === "JASA" ? 0 : data.stock,
+    }
 
     if (isEditMode && product) {
       updateProduct.mutate(

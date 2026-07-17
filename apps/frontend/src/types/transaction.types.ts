@@ -28,6 +28,28 @@ export interface Transaction {
   items: TransactionItem[]
 }
 
+export interface TransactionListParams {
+  page?: number
+  limit?: number
+  search?: string
+  sortBy?: "createdAt" | "total" | "invoiceNumber" | null
+  sortOrder?: "asc" | "desc"
+  status?: TransactionStatus
+  paymentMethod?: PaymentMethod
+  startDate?: string
+  endDate?: string
+}
+
+export interface TransactionListResponse {
+  data: Transaction[]
+  meta: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}
+
 export interface CartItem {
   productId: string
   quantity: number

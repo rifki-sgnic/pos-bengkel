@@ -18,9 +18,9 @@ export const productsController = {
 
   async findAll(req: Request, res: Response) {
     const role = req.user!.role;
-    const products = await productsService.findAll(role);
+    const result = await productsService.findAll(req.validatedQuery, role);
 
-    res.status(200).json({ data: products });
+    res.status(200).json(result);
   },
 
   async findById(req: Request, res: Response) {
