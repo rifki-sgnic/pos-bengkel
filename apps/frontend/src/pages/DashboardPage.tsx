@@ -1,20 +1,7 @@
-import { AlertTriangle, DollarSign, Receipt, TrendingUp } from "lucide-react"
 import { useState } from "react"
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
+import { DollarSign, Receipt, TrendingUp } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/features/auth/useAuthStore"
 import { useLowStockProducts } from "@/features/products/useProductsQuery"
@@ -23,7 +10,11 @@ import {
   useTopProducts,
 } from "@/features/reports/useReportsQuery"
 import { firstDayOfMonthISO, formatRupiah, todayISO } from "@/lib/formatters"
-import { useNavigate } from "react-router-dom"
+
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader"
+import { KpiCard } from "@/components/dashboard/KpiCard"
+import { TopProductsChart } from "@/components/dashboard/TopProductsChart"
+import { LowStockAlert } from "@/components/dashboard/LowStockAlert"
 
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user)
@@ -46,13 +37,23 @@ export function DashboardPage() {
 
   if (!isOwner) {
     return (
-      <div className="p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Selamat datang, {user?.name}
+      <div className="flex min-h-[80vh] animate-in flex-col items-center justify-center p-8 text-center duration-500 fade-in">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-8 ring-primary/5">
+          <TrendingUp className="h-8 w-8" />
+        </div>
+        <h1 className="text-3xl font-extrabold tracking-tight">
+          Selamat datang, {user?.name}!
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Gunakan menu Kasir (POS) untuk memulai transaksi baru.
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Sistem Kasir Bengkel siap digunakan. Silakan buka menu Kasir (POS) di
+          sidebar untuk mulai mencatat transaksi penjualan baru.
         </p>
+        <Button
+          className="mt-6 px-6 font-medium shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-95"
+          onClick={() => navigate("/pos")}
+        >
+          Mulai Transaksi Baru
+        </Button>
       </div>
     )
   }
@@ -66,189 +67,60 @@ export function DashboardPage() {
   }))
 
   return (
-    <div className="space-y-6 p-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Ringkasan performa bengkel Anda.
-          </p>
-        </div>
+    <div className="animate-in space-y-8 p-8 duration-500 fade-in">
+      {/* Header Section */}
+      <DashboardHeader
+        userName={user?.name}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+      />
 
-        <div className="flex gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="startDate" className="text-xs">
-              Dari
-            </Label>
-            <Input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-36"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="endDate" className="text-xs">
-              Sampai
-            </Label>
-            <Input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-36"
-            />
-          </div>
-        </div>
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <KpiCard
+          title="Total Omzet"
+          value={formatRupiah(summary?.totalRevenue ?? 0)}
+          subtext="Total pendapatan kotor"
+          icon={DollarSign}
+          isLoading={summaryLoading}
+          accentColor="emerald"
+        />
+
+        <KpiCard
+          title="Jumlah Transaksi"
+          value={summary?.totalTransactions ?? 0}
+          subtext="Transaksi tercatat"
+          icon={Receipt}
+          isLoading={summaryLoading}
+          accentColor="blue"
+        />
+
+        <KpiCard
+          title="Laba Kotor"
+          value={formatRupiah(summary?.grossProfit ?? 0)}
+          subtext="Selisih harga jual & modal"
+          icon={TrendingUp}
+          isLoading={summaryLoading}
+          accentColor="indigo"
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Omzet
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">
-              {summaryLoading
-                ? "..."
-                : formatRupiah(summary?.totalRevenue ?? 0)}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Main Grid: Chart & Low Stock */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <TopProductsChart
+          isLoading={topProductsLoading}
+          topProducts={topProducts}
+          chartData={chartData}
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Jumlah Transaksi
-            </CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">
-              {summaryLoading ? "..." : (summary?.totalTransactions ?? 0)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Laba Kotor
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">
-              {summaryLoading ? "..." : formatRupiah(summary?.grossProfit ?? 0)}
-            </p>
-          </CardContent>
-        </Card>
+        <LowStockAlert
+          isLoading={lowStockLoading}
+          lowStockProducts={lowStockProducts}
+          onNavigate={() => navigate("/products")}
+        />
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Produk Terlaris</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {topProductsLoading && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Memuat data...
-            </p>
-          )}
-
-          {!topProductsLoading &&
-            (!topProducts || topProducts.length === 0) && (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Belum ada data penjualan pada rentang ini.
-              </p>
-            )}
-
-          {chartData && chartData.length > 0 && (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  className="stroke-border"
-                />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 12 }}
-                  angle={-15}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                  }}
-                />
-                <Bar
-                  dataKey="terjual"
-                  fill="var(--primary)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {lowStockProducts && lowStockProducts.length > 0 && (
-        <Card className="border-destructive/30 bg-destructive/3">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              Stok Menipis
-              <Badge variant="destructive" className="ml-auto">
-                {lowStockProducts.length} produk
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {lowStockProducts.slice(0, 5).map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between border-b border-dashed py-1.5 text-sm last:border-0"
-                >
-                  <span className="font-medium">{product.name}</span>
-                  <span className="text-muted-foreground">
-                    Sisa{" "}
-                    <span className="font-semibold text-destructive">
-                      {product.stock}
-                    </span>{" "}
-                    / min. {product.minStock}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {lowStockProducts.length > 5 && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                +{lowStockProducts.length - 5} produk lainnya
-              </p>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={() => navigate("/products")}
-            >
-              Kelola Stok
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

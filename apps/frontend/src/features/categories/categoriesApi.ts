@@ -8,7 +8,11 @@ export const categoriesApi = {
   },
 
   async create(name: string): Promise<Category> {
-    const response = await api.post("/categories", name)
+    const response = await api.post("/categories", { name })
     return response.data.data
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/categories/${id}`)
   },
 }

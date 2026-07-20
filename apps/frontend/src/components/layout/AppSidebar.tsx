@@ -1,11 +1,15 @@
 import {
   BarChart3,
   ChevronUp,
+  Folder,
+  Laptop,
   LayoutDashboard,
   LogOut,
+  Moon,
   Package,
   Receipt,
   ShoppingCart,
+  Sun,
   Wrench,
 } from "lucide-react"
 import { NavLink, useNavigate } from "react-router-dom"
@@ -15,6 +19,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -31,11 +40,13 @@ import {
 } from "@/components/ui/sidebar"
 
 import { useAuthStore } from "@/features/auth/useAuthStore"
+import { useTheme } from "@/components/theme-provider"
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, ownerOnly: false },
   { title: "Kasir (POS)", url: "/pos", icon: ShoppingCart, ownerOnly: false },
   { title: "Produk & Jasa", url: "/products", icon: Package, ownerOnly: false },
+  { title: "Kategori", url: "/categories", icon: Folder, ownerOnly: true },
   {
     title: "Riwayat Transaksi",
     url: "/transactions",
@@ -57,6 +68,7 @@ function getInitials(name: string) {
 export function AppSidebar() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { theme, setTheme } = useTheme()
   const isOwner = user?.role === "OWNER"
 
   const handleLogout = () => {
@@ -69,14 +81,26 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Wrench className="h-4 w-4" strokeWidth={2.2} />
-          </div>
-          <span className="font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-            Bengkel POS
-          </span>
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              render={
+                <div className="flex items-center gap-2">
+                  <div className="flex aspect-square h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                    <Wrench className="h-4 w-4" strokeWidth={2.2} />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate font-semibold">Bengkel POS</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      Sistem Kasir
+                    </span>
+                  </div>
+                </div>
+              }
+            />
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>
@@ -140,6 +164,35 @@ export function AppSidebar() {
                 }
               />
               <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    {theme === "dark" ? (
+                      <Moon className="mr-2 h-4 w-4" />
+                    ) : theme === "light" ? (
+                      <Sun className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Laptop className="mr-2 h-4 w-4" />
+                    )}
+                    <span>Ubah Tema</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => setTheme("light")}>
+                        <Sun className="mr-2 h-4 w-4" />
+                        <span>Terang (Light)</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setTheme("dark")}>
+                        <Moon className="mr-2 h-4 w-4" />
+                        <span>Gelap (Dark)</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setTheme("system")}>
+                        <Laptop className="mr-2 h-4 w-4" />
+                        <span>Sistem</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-destructive"

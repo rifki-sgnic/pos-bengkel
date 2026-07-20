@@ -23,3 +23,18 @@ export function useCreateCategory() {
     },
   })
 }
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: categoriesApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] })
+      toast.success("Kategori berhasil dihapus")
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message ?? "Gagal menghapus kategori")
+    },
+  })
+}

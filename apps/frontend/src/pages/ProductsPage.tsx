@@ -1,10 +1,6 @@
-import type {
-  ColumnDef,
-  PaginationState,
-  SortingState,
-} from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Ban, MoreHorizontal, Pencil, Plus } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+import DeactivateConfirmDialog from "@/components/products/DeactivateConfirmDialog"
 import { ProductFormDialog } from "@/components/products/ProductFormDialog"
 import { DataTable } from "@/components/shared/DataTable"
 import { useAuthStore } from "@/features/auth/useAuthStore"
@@ -23,14 +20,9 @@ import {
   useDeactivateProduct,
   useProducts,
 } from "@/features/products/useProductsQuery"
-import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { formatRupiah } from "@/lib/formatters"
-import type {
-  Product,
-  ProductListParams,
-  ProductType,
-} from "@/types/product.types"
 import { useDataTableUrlState } from "@/hooks/use-data-table-url-state"
+import { formatRupiah } from "@/lib/formatters"
+import type { Product, ProductType } from "@/types/product.types"
 
 export function ProductsPage() {
   const user = useAuthStore((state) => state.user)
@@ -58,6 +50,7 @@ export function ProductsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [deactivateId, setDeactivateId] = useState<string | null>(null)
 
   const handleAdd = () => {
     setEditingProduct(null)
@@ -70,12 +63,16 @@ export function ProductsPage() {
   }
 
   const handleDeactivate = (id: string) => {
-    if (
-      confirm(
-        "Nonaktifkan produk ini? Produk tidak akan muncul di daftar transaksi."
-      )
-    ) {
-      deactivateProduct.mutate(id)
+    setDeactivateId(id)
+  }
+
+  const handleDeactivateConfirm = () => {
+    if (deactivateId) {
+      deactivateProduct.mutate(deactivateId, {
+        onSuccess: () => {
+          setDeactivateId(null)
+        },
+      })
     }
   }
 
@@ -260,6 +257,13 @@ export function ProductsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         product={editingProduct}
+      />
+
+      <DeactivateConfirmDialog
+        deactivateId={deactivateId}
+        setDeactivateId={setDeactivateId}
+        deactivateProduct={deactivateProduct}
+        handleDeactivateConfirm={handleDeactivateConfirm}
       />
     </div>
   )

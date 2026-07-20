@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/LoginPage"
 import { PosPage } from "./pages/PosPage"
 import { ProductsPage } from "./pages/ProductsPage"
 import { TransactionsPage } from "./pages/TransactionPage"
+import { CategoriesPage } from "./pages/CategoriesPage"
 import { ProtectedRoute } from "./routes/ProtectedRoute"
 import { PublicRoute } from "./routes/PublicRoute"
 
@@ -25,6 +26,7 @@ export function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/products" element={<ProductsPage />} />
+              <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/pos" element={<PosPage />} />
               <Route path="/transactions" element={<TransactionsPage />} />
             </Route>
